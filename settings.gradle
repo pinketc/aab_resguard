@@ -1,0 +1,26 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode = RepositoriesMode.PREFER_PROJECT
+    repositories {
+        google()
+        mavenCentral()
+        if ("true".equalsIgnoreCase(System.getProperty('useLocalMaven', "false"))) {
+            mavenLocal()
+        }
+    }
+}
+
+rootProject.name = 'AabResGuard'
+
+include ':core', ':plugin', ':app', ':df_module1', ':df_module2'
+
+settings.project(":app").projectDir = file("$rootDir/samples/app")
+settings.project(":df_module1").projectDir = file("$rootDir/samples/dynamic-features/df_module1")
+settings.project(":df_module2").projectDir = file("$rootDir/samples/dynamic-features/df_module2")

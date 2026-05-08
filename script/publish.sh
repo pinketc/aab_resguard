@@ -1,0 +1,25 @@
+#!/bin/bash
+set -e
+
+function showHelp() {
+    echo "publishToMavenLocal:  ./publish.sh l"
+    echo "publish (Maven):      ./publish.sh m"
+}
+
+if [ -z "$1" ]; then
+    showHelp
+    exit 1
+fi
+
+function publishMaven() {
+    ./gradlew clean :core:"$1" :plugin:"$1" --no-daemon --stacktrace -PuseSource=true -x compileTestJava
+}
+
+if [[ $1 == 'l' ]]; then
+    publishMaven publishToMavenLocal
+elif [[ $1 == 'm' ]]; then
+    publishMaven publish
+else
+    showHelp
+    exit 1
+fi

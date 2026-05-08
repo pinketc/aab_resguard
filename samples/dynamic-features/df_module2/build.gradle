@@ -1,0 +1,30 @@
+apply plugin: 'com.android.dynamic-feature'
+
+android {
+    namespace 'com.bytedance.android.df.module2'
+    compileSdk versions.compileSdkVersion
+
+    defaultConfig {
+        minSdk versions.minSdkVersion
+        targetSdk versions.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation project(':app')
+}

@@ -1,0 +1,32 @@
+ext {
+    GROUP_ID = "com.bytedance.android"
+    pomInfo = [
+            name       : "AabResGuard",
+            description: "The tool of obfuscated aab resources",
+            siteUrl    : "https://github.com/bytedance/AabResGuard",
+            gitUrl     : "https://github.com/bytedance/AabResGuard.git",
+            developer  : [
+                    id   : "JingYeoh",
+                    name : "JingYeoh",
+                    email: "yangjing.yeoh@gmail.com",
+            ],
+    ]
+}
+
+def localFile = project.rootProject.file("local.properties")
+if (localFile.exists()) {
+    println "======== read local.properties ========"
+    Properties properties = new Properties()
+    properties.load(localFile.newDataInputStream())
+    localFile.eachLine { line ->
+        if (line.startsWith("#")) {
+            return
+        }
+        def arr = line.split("=", 2)
+        if (arr.length == 2) {
+            ext.set(arr[0], arr[1])
+            System.setProperty(arr[0], arr[1])
+        }
+    }
+    println "======== read local.properties ========"
+}

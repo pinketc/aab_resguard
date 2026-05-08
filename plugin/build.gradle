@@ -1,0 +1,40 @@
+apply plugin: 'java-library'
+apply plugin: 'org.jetbrains.kotlin.jvm'
+apply plugin: 'groovy'
+
+apply from: rootProject.file('gradle/publish.gradle')
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+kotlin {
+    jvmToolchain(17)
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation gradleApi()
+    implementation localGroovy()
+    compileOnly deps.gradle.agp
+
+    implementation deps.kotlin.stdlib
+
+    def useSource = "true".equalsIgnoreCase(findProperty("useSource") ?: "false")
+    if (useSource) {
+        api(project(":core"))
+    } else {
+        api(deps.aabresguard.core) {
+            exclude group: "com.google.guava", module: "guava"
+            exclude group: "com.android.tools.build", module: "gradle"
+        }
+    }
+}
+
+configurations {
+    all*.exclude group: "com.android.tools.build", module: "bundletool"
+}

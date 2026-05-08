@@ -1,0 +1,33 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+    apply from: rootProject.file("gradle/config.gradle")
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+        if ("true".equalsIgnoreCase(System.getProperty('useLocalMaven', "false"))) {
+            println "use local repo"
+            mavenLocal()
+        } else {
+            def releaseUrl = findProperty("RELEASE_REPOSITORY_URL")
+            def snapshotUrl = findProperty("SNAPSHOT_REPOSITORY_URL")
+            if (releaseUrl) maven { url releaseUrl }
+            if (snapshotUrl) maven { url snapshotUrl }
+        }
+    }
+    dependencies {
+        classpath deps.plugin.shadow
+        classpath deps.plugin.protobuf
+        classpath deps.gradle.agp
+        classpath deps.kotlin.plugin
+
+        if ("true".equalsIgnoreCase(System.getProperty("enableAabResGuardPlugin", "false"))) {
+            classpath deps.aabresguard.plugin
+        }
+    }
+}
+
+tasks.register('clean', Delete) {
+    delete rootProject.layout.buildDirectory
+}

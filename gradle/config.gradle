@@ -1,0 +1,22 @@
+loadSystemProperties(rootProject.file("gradle.properties"))
+loadSystemProperties(rootProject.file("local.properties"))
+
+apply from: 'gradle/ext.gradle'
+apply from: 'gradle/versions.gradle'
+
+allprojects {
+    tasks.withType(Javadoc) {
+        options.addStringOption('Xdoclint:none', '-quiet')
+        options.addStringOption('encoding', 'UTF-8')
+    }
+}
+
+static void loadSystemProperties(File path) {
+    if (!path.exists()) {
+        return
+    }
+    Properties properties = new Properties()
+    properties.load(path.newDataInputStream())
+    // Don't overwrite values already set via -D on the command line.
+    properties.each { k, v -> System.properties.putIfAbsent(k, v) }
+}

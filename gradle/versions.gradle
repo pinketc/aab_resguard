@@ -1,0 +1,48 @@
+def versions = [:]
+versions.agp = "9.1.0"
+versions.kotlin = "2.1.20"
+versions.java = "17"
+versions.aabresguard = "0.2.0"
+// android
+versions.compileSdkVersion = 35
+versions.minSdkVersion = 24
+versions.targetSdkVersion = 35
+
+versions.bundletool = "0.10.0"
+
+versions["aabresguard-core"] = versions.aabresguard
+versions["aabresguard-plugin"] = versions.aabresguard
+
+// plugin
+versions.shadow = "9.0.0"
+versions.protobuf = "0.9.4"
+versions.protoc = "3.25.5"
+
+ext.versions = versions
+
+ext.deps = [:]
+// gradle
+def gradle = [:]
+gradle.agp = "com.android.tools.build:gradle:${versions.agp}"
+deps.gradle = gradle
+// kotlin
+def kotlin = [:]
+kotlin.stdlib = "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$versions.kotlin"
+kotlin.plugin = "org.jetbrains.kotlin:kotlin-gradle-plugin:$versions.kotlin"
+kotlin.allopen = "org.jetbrains.kotlin:kotlin-allopen:$versions.kotlin"
+kotlin.embeddable = "org.jetbrains.kotlin:kotlin-compiler-embeddable:$versions.kotlin"
+deps.kotlin = kotlin
+// plugin
+def plugin = [:]
+plugin.shadow = "com.gradleup.shadow:shadow-gradle-plugin:${versions.shadow}"
+plugin.protobuf = "com.google.protobuf:protobuf-gradle-plugin:${versions.protobuf}"
+deps.plugin = plugin
+// library
+deps.bundletool = "com.android.tools.build:bundletool:${versions.bundletool}"
+// aabresguard
+def aabresguard = [:]
+aabresguard.core = "$GROUP_ID:aabresguard-core:${versions["aabresguard"]}"
+aabresguard.plugin = "$GROUP_ID:aabresguard-plugin:${versions["aabresguard"]}"
+deps.aabresguard = aabresguard
+
+ext.deps = deps

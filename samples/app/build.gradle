@@ -1,0 +1,51 @@
+apply plugin: 'com.android.application'
+apply from: "$rootDir/gradle/aabresguard.gradle"
+
+android {
+    namespace 'com.bytedance.android.app'
+    compileSdk versions.compileSdkVersion
+
+    defaultConfig {
+        applicationId 'com.bytedance.android.app'
+        minSdk versions.minSdkVersion
+        targetSdk versions.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            minifyEnabled false
+            shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    bundle {
+        language {
+            enableSplit = false
+        }
+        density {
+            enableSplit = true
+        }
+        abi {
+            enableSplit = true
+        }
+    }
+
+    dynamicFeatures = [':df_module1', ':df_module2'] as Set
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+}

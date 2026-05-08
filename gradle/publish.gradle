@@ -1,0 +1,61 @@
+apply plugin: 'maven-publish'
+
+java {
+    withSourcesJar()
+    withJavadocJar()
+}
+
+def releasesRepoUrl = System.getProperty("RELEASE_REPOSITORY_URL")
+def snapshotsRepoUrl = System.getProperty("SNAPSHOT_REPOSITORY_URL")
+def publishUrl = versions[ARTIFACT_ID].endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+def publishUserName = System.getProperty("NEXUS_USERNAME")
+def publishPassword = System.getProperty("NEXUS_PASSWORD")
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            groupId = GROUP_ID
+            artifactId = ARTIFACT_ID
+            version = versions[ARTIFACT_ID]
+
+            pom {
+                name = pomInfo.name
+                description = pomInfo.description
+                url = pomInfo.siteUrl
+                licenses {
+                    license {
+                        name = "The Apache Software License, Version 2.0"
+                        url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
+                    }
+                }
+                developers {
+                    developer {
+                        id = pomInfo.developer.id
+                        name = pomInfo.developer.name
+                        email = pomInfo.developer.email
+                    }
+                }
+                scm {
+                    url = pomInfo.siteUrl
+                    connection = "scm:git:${pomInfo.gitUrl}"
+                    developerConnection = "scm:git:${pomInfo.gitUrl}"
+                }
+            }
+        }
+    }
+    repositories {
+        if (publishUrl) {
+            maven {
+                name = "remote"
+                url = publishUrl
+                if (publishUserName) {
+                    credentials {
+                        username = publishUserName
+                        password = publishPassword
+                    }
+                }
+            }
+        }
+    }
+}
