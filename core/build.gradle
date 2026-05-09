@@ -15,6 +15,16 @@ configurations.all {
     resolutionStrategy.dependencySubstitution {
         resolutionStrategy {
             force deps.bundletool
+            // bundletool 0.10.0 transitively pins protobuf-java:3.4.0 (2017). In that
+            // version proto3 messages SILENTLY DROP unknown fields on parse. AABs from
+            // AGP 8+ / com.google.android.material >= 1.7.0 use newer proto features
+            // (`MacroBody`, `staged_id`, `is_dynamic`, `dynamic_ref_table`, …) that the
+            // bundled aapt2-proto:0.4.0 schema does not declare — so these become
+            // unknown fields. Pinning to 3.25.5 (matches `versions.protoc`) lets the
+            // runtime preserve them across toBuilder()/build() round-trips, which the
+            // in-place resource-table rewrite in ResourcesObfuscator now relies on.
+            force "com.google.protobuf:protobuf-java:${versions.protoc}"
+            force "com.google.protobuf:protobuf-java-util:${versions.protoc}"
         }
     }
 }
