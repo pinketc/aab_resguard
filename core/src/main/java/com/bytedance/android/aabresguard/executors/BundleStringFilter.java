@@ -4,7 +4,7 @@ import com.android.aapt.Resources;
 import com.android.tools.build.bundletool.model.AppBundle;
 import com.android.tools.build.bundletool.model.BundleModule;
 import com.android.tools.build.bundletool.model.BundleModuleName;
-import com.bytedance.android.aabresguard.bundle.ResourcesTableBuilder;
+import com.bytedance.android.aabresguard.bundle.ResourcesTableOperation;
 import com.bytedance.android.aabresguard.utils.TimeClock;
 import com.google.common.collect.ImmutableMap;
 
@@ -99,23 +99,26 @@ public class BundleStringFilter {
         }
         Resources.ResourceTable rawTable = bundleModule.getResourceTable().get();
 
-        ResourcesTableBuilder tableBuilder = new ResourcesTableBuilder();
         List<Resources.Package> packageList = rawTable.getPackageList();
-
-
         if (packageList == null || packageList.isEmpty()) {
-            return tableBuilder.build();
+            return rawTable;
         }
 
+        // Compute per-entry replacements only for entries we actually need to modify.
+        // Entries not present in the map are left untouched by rewriteEntries, which
+        // preserves any package-level / table-level proto state (including unknown
+        // fields like the `macro` resource type or `overlayable` blocks emitted by
+        // newer AAPT2 / com.google.android.material >= 1.7.0).
+        Map<Long, Resources.Entry> replacements = new HashMap<>();
         for (Resources.Package resPackage : packageList) {
             if (resPackage == null) {
                 continue;
             }
-            ResourcesTableBuilder.PackageBuilder packageBuilder = tableBuilder.addPackage(resPackage);
             List<Resources.Type> typeList = resPackage.getTypeList();
             if (typeList == null) {
                 continue;
             }
+            int packageId = resPackage.getPackageId().getId();
             Set<String> languageFilterSet = new HashSet<>(100);
             List<String> nameFilterList = new ArrayList<>(3000);
             for (Resources.Type resType : typeList) {
@@ -126,15 +129,18 @@ public class BundleStringFilter {
                 if (entryList == null) {
                     continue;
                 }
+                int typeId = resType.getTypeId().getId();
                 for (Resources.Entry resEntry : entryList) {
                     if (resEntry == null) {
                         continue;
                     }
+                    boolean modified = false;
+                    Resources.Entry working = resEntry;
 
-                    if (resPackage.getPackageId().getId() == 127 && resType.getName().equals("string") &&
+                    if (packageId == 127 && resType.getName().equals("string") &&
                             languageWhiteList != null && !languageWhiteList.isEmpty()) {
                         //删除语言
-                        List<Resources.ConfigValue> languageValue = resEntry.getConfigValueList().stream()
+                        List<Resources.ConfigValue> languageValue = working.getConfigValueList().stream()
                                 .filter(Objects::nonNull)
                                 .filter(configValue -> {
                                     String locale = configValue.getConfig().getLocale();
@@ -144,13 +150,14 @@ public class BundleStringFilter {
                                     languageFilterSet.add(locale);
                                     return false;
                                 }).collect(Collectors.toList());
-                        resEntry = resEntry.toBuilder().clearConfigValue().addAllConfigValue(languageValue).build();
+                        working = working.toBuilder().clearConfigValue().addAllConfigValue(languageValue).build();
+                        modified = true;
                     }
 
                     // 删除shrink扫描出的无用字符串
-                    if (resPackage.getPackageId().getId() == 127 && resType.getName().equals("string")
-                            && unUsedNameSet.size() > 0 && unUsedNameSet.contains(resEntry.getName())) {
-                        List<Resources.ConfigValue> proguardConfigValue = resEntry.getConfigValueList().stream()
+                    if (packageId == 127 && resType.getName().equals("string")
+                            && unUsedNameSet.size() > 0 && unUsedNameSet.contains(working.getName())) {
+                        List<Resources.ConfigValue> proguardConfigValue = working.getConfigValueList().stream()
                                 .filter(Objects::nonNull)
                                 .map(configValue -> {
                                     Resources.ConfigValue.Builder rcb = configValue.toBuilder();
@@ -166,13 +173,18 @@ public class BundleStringFilter {
                                     ).build();
                                     return changedConfigValue;
                                 }).collect(Collectors.toList());
-                        nameFilterList.add(resEntry.getName());
-                        resEntry = resEntry.toBuilder().clearConfigValue().addAllConfigValue(proguardConfigValue).build();
+                        nameFilterList.add(working.getName());
+                        working = working.toBuilder().clearConfigValue().addAllConfigValue(proguardConfigValue).build();
+                        modified = true;
                     }
-                    packageBuilder.addResource(resType, resEntry);
+
+                    if (modified) {
+                        long key = ResourcesTableOperation.composeEntryKey(packageId, typeId, working.getEntryId().getId());
+                        replacements.put(key, working);
+                    }
                 }
             }
-            System.out.println("filtering " + resPackage.getPackageName() + " id:" + resPackage.getPackageId().getId());
+            System.out.println("filtering " + resPackage.getPackageName() + " id:" + packageId);
             StringBuilder l = new StringBuilder();
             for (String lan : languageFilterSet) {
                 l.append("[remove language] : ").append(lan).append("\n");
@@ -184,9 +196,8 @@ public class BundleStringFilter {
             }
             System.out.println(l.toString());
             System.out.println("-----------");
-            packageBuilder.build();
         }
-        return tableBuilder.build();
+        return ResourcesTableOperation.rewriteEntries(rawTable, replacements);
     }
 
     private boolean keepLanguage(String lan) {

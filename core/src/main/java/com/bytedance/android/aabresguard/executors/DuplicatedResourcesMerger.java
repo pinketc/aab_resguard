@@ -8,7 +8,6 @@ import com.android.tools.build.bundletool.model.ModuleEntry;
 import com.android.tools.build.bundletool.model.ZipPath;
 import com.android.tools.build.bundletool.model.utils.ResourcesUtils;
 import com.bytedance.android.aabresguard.bundle.AppBundleUtils;
-import com.bytedance.android.aabresguard.bundle.ResourcesTableBuilder;
 import com.bytedance.android.aabresguard.bundle.ResourcesTableOperation;
 import com.bytedance.android.aabresguard.utils.TimeClock;
 
@@ -124,17 +123,24 @@ public class DuplicatedResourcesMerger {
 
     /**
      * merge resourcesTable, remove duplicated resources.
+     *
+     * <p>Replaces entries in place on a builder cloned from the original table so that
+     * package- and type-level fields the bundled aapt2-proto schema does not understand
+     * (e.g. {@code overlayable} blocks, the {@code macro} type emitted by Material
+     * components &gt;= 1.7.0) round-trip unchanged. See {@link ResourcesTableOperation#rewriteEntries}.
      */
     private Resources.ResourceTable mergeResourcesTable(Resources.ResourceTable resourceTable) {
-        ResourcesTableBuilder resourcesTableBuilder = new ResourcesTableBuilder();
+        Map<Long, Resources.Entry> replacements = new HashMap<>();
         ResourcesUtils.entries(resourceTable).forEach(entry -> {
-            ResourcesTableBuilder.PackageBuilder packageBuilder = resourcesTableBuilder.addPackage(entry.getPackage());
-            // replace the duplicated path
             List<Resources.ConfigValue> configValues = getDuplicatedMergedConfigValues(entry.getEntry());
             Resources.Entry mergedEntry = ResourcesTableOperation.updateEntryConfigValueList(entry.getEntry(), configValues);
-            packageBuilder.addResource(entry.getType(), mergedEntry);
+            long key = ResourcesTableOperation.composeEntryKey(
+                    entry.getPackage().getPackageId().getId(),
+                    entry.getType().getTypeId().getId(),
+                    entry.getEntry().getEntryId().getId());
+            replacements.put(key, mergedEntry);
         });
-        return resourcesTableBuilder.build();
+        return ResourcesTableOperation.rewriteEntries(resourceTable, replacements);
     }
 
     private List<Resources.ConfigValue> getDuplicatedMergedConfigValues(Resources.Entry entry) {

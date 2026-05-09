@@ -6,11 +6,9 @@ import com.android.tools.build.bundletool.model.BundleModule;
 import com.android.tools.build.bundletool.model.BundleModuleName;
 import com.android.tools.build.bundletool.model.InMemoryModuleEntry;
 import com.android.tools.build.bundletool.model.ModuleEntry;
-import com.android.tools.build.bundletool.model.ResourceTableEntry;
 import com.android.tools.build.bundletool.model.ZipPath;
 import com.android.tools.build.bundletool.model.utils.ResourcesUtils;
 import com.bytedance.android.aabresguard.bundle.AppBundleUtils;
-import com.bytedance.android.aabresguard.bundle.ResourcesTableBuilder;
 import com.bytedance.android.aabresguard.bundle.ResourcesTableOperation;
 import com.bytedance.android.aabresguard.model.ResourcesMapping;
 import com.bytedance.android.aabresguard.obfuscation.ResGuardStringBuilder;
@@ -41,6 +39,8 @@ import static com.android.tools.build.bundletool.model.utils.files.FilePrecondit
 import static com.bytedance.android.aabresguard.bundle.AppBundleUtils.getEntryNameByResourceName;
 import static com.bytedance.android.aabresguard.bundle.AppBundleUtils.getTypeNameByResourceName;
 import static com.bytedance.android.aabresguard.bundle.ResourcesTableOperation.checkConfiguration;
+import static com.bytedance.android.aabresguard.bundle.ResourcesTableOperation.composeEntryKey;
+import static com.bytedance.android.aabresguard.bundle.ResourcesTableOperation.rewriteEntries;
 import static com.bytedance.android.aabresguard.bundle.ResourcesTableOperation.updateEntryConfigValueList;
 import static com.bytedance.android.aabresguard.utils.FileOperation.getFilePrefixByFileName;
 import static com.bytedance.android.aabresguard.utils.FileOperation.getNameFromZipFilePath;
@@ -284,6 +284,14 @@ public class ResourcesObfuscator {
 
     /**
      * Obfuscate resourceTable.
+     *
+     * <p>Entries are rewritten in place on a {@link Resources.ResourceTable.Builder} cloned
+     * from the original table. This preserves package/type-level fields that the bundled
+     * aapt2-proto schema does not understand — notably the {@code overlayable} block on
+     * packages and the {@code macro} resource type added by AGP/AAPT2 for
+     * {@code com.google.android.material} >= 1.7.0. Rebuilding the table from scratch (the
+     * previous behaviour) silently dropped those fields and produced an AAB that Google
+     * Play rejected on upload.
      */
     private Resources.ResourceTable obfuscateResourceTable(BundleModule bundleModule, Map<String, String> obfuscatedEntryMap) {
         if (!bundleModule.getResourceTable().isPresent()) {
@@ -291,8 +299,8 @@ public class ResourcesObfuscator {
         }
         Resources.ResourceTable resourceTable = bundleModule.getResourceTable().get();
 
-        ResourcesTableBuilder resourcesTableBuilder = new ResourcesTableBuilder();
-        ResourcesUtils.entries(resourceTable).map(entry -> {
+        Map<Long, Resources.Entry> entryReplacements = new HashMap<>();
+        ResourcesUtils.entries(resourceTable).forEach(entry -> {
             String resourceName = AppBundleUtils.getResourceFullName(entry);
             String resourceId = entry.getResourceId().toString();
             String obfuscatedResName = resourcesMapping.getResourceMapping().get(resourceName);
@@ -328,13 +336,15 @@ public class ResourcesObfuscator {
                 obfuscatedEntry = updateEntryConfigValueList(obfuscatedEntry, configValues);
             }
 
-            return ResourceTableEntry.create(entry.getPackage(), entry.getType(), obfuscatedEntry);
-        }).forEach(entry -> {
-            checkConfiguration(entry.getEntry());
-            resourcesTableBuilder.addPackage(entry.getPackage()).addResource(entry.getType(), entry.getEntry());
+            checkConfiguration(obfuscatedEntry);
+            long key = composeEntryKey(
+                    entry.getPackage().getPackageId().getId(),
+                    entry.getType().getTypeId().getId(),
+                    entry.getEntry().getEntryId().getId());
+            entryReplacements.put(key, obfuscatedEntry);
         });
 
-        return resourcesTableBuilder.build();
+        return rewriteEntries(resourceTable, entryReplacements);
     }
 
     private void checkResMappingRules() {
