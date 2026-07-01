@@ -1,0 +1,4 @@
+jdk:
+  - openjdk17
+install:
+  - ./gradlew :core:publishToMavenLocal :plugin:publishToMavenLocal -PuseSource=true -x compileTestJava

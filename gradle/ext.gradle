@@ -1,5 +1,5 @@
 ext {
-    GROUP_ID = "com.bytedance.android"
+    GROUP_ID = "com.github.pinketc.aab_resguard"
     pomInfo = [
             name       : "AabResGuard",
             description: "The tool of obfuscated aab resources",
