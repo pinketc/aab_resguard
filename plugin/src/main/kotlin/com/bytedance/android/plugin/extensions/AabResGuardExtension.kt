@@ -21,6 +21,19 @@ open class AabResGuardExtension {
     var unusedStringPath: String? = ""
     var languageWhiteList: Set<String>? = HashSet()
 
+    /**
+     * jiagu hardening (mã hóa DEX + native shell 360-style) — chạy NGAY SAU khi obfuscate resource,
+     * trên chính AAB đầu ra. Bật = `bundleRelease` ra AAB đã resguard + đã hardening + đã ký, MỘT lần bấm.
+     * Cần signingConfig của buildType (để ký). Mặc định TẮT để không đổi hành vi hiện có.
+     */
+    var enableJiaguHarden: Boolean = false
+
+    /**
+     * (Tùy chọn) SHA-256 của **App Signing key** trên Google Play (64 hex, bỏ dấu ':').
+     * Nhúng làm C1 chống repackaging (warn-only). Trống = tắt (up Play sạch). KHÔNG phải upload key.
+     */
+    var jiaguCertHash: String = ""
+
     override fun toString(): String {
         return "AabResGuardExtension\n" +
                 "\tenableObfuscate=$enableObfuscate\n" +
@@ -31,6 +44,8 @@ open class AabResGuardExtension {
                 "\tfilterList=$filterList\n" +
                 "\tenableFilterStrings=$enableFilterStrings\n" +
                 "\tunusedStringPath=$unusedStringPath\n" +
-                "\tlanguageWhiteList=$languageWhiteList"
+                "\tlanguageWhiteList=$languageWhiteList\n" +
+                "\tenableJiaguHarden=$enableJiaguHarden\n" +
+                "\tjiaguCertHash=${if (jiaguCertHash.isBlank()) "(none)" else "set"}"
     }
 }

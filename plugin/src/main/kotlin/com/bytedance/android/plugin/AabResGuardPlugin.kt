@@ -10,6 +10,7 @@ import com.bytedance.android.plugin.tasks.AabResGuardTask
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.artifacts.Configuration
 
 class AabResGuardPlugin : Plugin<Project> {
 
@@ -50,6 +51,14 @@ class AabResGuardPlugin : Plugin<Project> {
                     sc.keyAlias?.let { task.keyAlias.set(it) }
                     sc.keyPassword?.let { task.keyPassword.set(it) }
                 }
+
+                task.enableJiaguHarden.set(extension.enableJiaguHarden)
+                task.jiaguCertHash.set(extension.jiaguCertHash)
+                if (extension.enableJiaguHarden) {
+                    // classpath phụ cho pack.jar (subprocess): proto để sửa manifest AAB + zstd để nén.
+                    // Chỉ tạo/giải khi BẬT jiagu → không phát sinh chi phí khi tắt.
+                    task.jiaguClasspath.from(jiaguTooling(project))
+                }
             }
 
             variant.artifacts
@@ -57,6 +66,23 @@ class AabResGuardPlugin : Plugin<Project> {
                 .wiredWithFiles(AabResGuardTask::inputBundle, AabResGuardTask::outputBundle)
                 .toTransform(SingleArtifact.BUNDLE)
         }
+    }
+
+    /**
+     * Configuration chứa classpath phụ pack.jar cần lúc chạy -aab: proto (com.android.aapt.Resources)
+     * để sửa manifest AAB + zstd-jni để nén dex. Tạo 1 lần trong project consumer, resolve từ google()/mavenCentral().
+     */
+    private fun jiaguTooling(project: Project): Configuration {
+        project.configurations.findByName("jiaguHardenTooling")?.let { return it }
+        val cfg = project.configurations.create("jiaguHardenTooling") { c ->
+            c.isCanBeConsumed = false
+            c.isCanBeResolved = true
+            c.isVisible = false
+        }
+        project.dependencies.add(cfg.name, "com.android.tools.build:aapt2-proto:0.4.0")
+        project.dependencies.add(cfg.name, "com.google.protobuf:protobuf-java:3.25.5")
+        project.dependencies.add(cfg.name, "com.github.luben:zstd-jni:1.5.6-3")
+        return cfg
     }
 
     private fun resolveSigningConfig(
